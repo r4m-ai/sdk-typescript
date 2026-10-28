@@ -1,13 +1,22 @@
-# Publish @r4mai/sdk to npm via trusted publishing (OIDC, no tokens).
+# Stage @r4mai/sdk on npm via trusted publishing (OIDC, no tokens).
 #
 # Fires when a v* tag is pushed (publish-sdks.sh creates and pushes the tag).
+# The version is STAGED, not published: it stays hidden until a maintainer
+# approves it with 2FA — on npmjs.com (the package's "Staged Packages" tab →
+# Approve) or with `npm stage approve <stage-id>` (`npm stage list @r4mai/sdk`
+# shows the id). That approval is the one human step of a release; it needs
+# a browser, not a laptop with credentials.
+#
 # One-time setup before this works:
-#   1. Publish v1.0.0 once with a token (npm has a chicken-and-egg: you cannot
-#      register a trusted publisher until the package exists).
+#   1. The package must exist on npm (the first version was published by
+#      hand; trusted publishers cannot be registered for a name that has no
+#      package yet).
 #   2. On npmjs.com → the package → Settings → Trusted Publisher → GitHub
 #      Actions, set: org/user = r4m-ai, repo = sdk-typescript,
-#      workflow = publish.yml, environment = (leave blank).
-#   3. After that, every pushed v* tag publishes via OIDC — no NPM_TOKEN.
+#      workflow = publish.yml, environment = (leave blank). "Allowed actions"
+#      can stay at its default: `npm stage publish` is always allowed, and
+#      direct `npm publish` is deliberately NOT enabled.
+#   3. After that, every pushed v* tag stages via OIDC — no NPM_TOKEN.
 #
 # This file is generated from the monorepo (scripts/sdk-templates/) — edit it
 # there, not in the published repo, or it will be overwritten on next publish.
@@ -25,9 +34,9 @@ jobs:
       contents: read
       id-token: write # required for OIDC trusted publishing + provenance
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
@@ -44,5 +53,6 @@ jobs:
 
       # No NODE_AUTH_TOKEN: with a trusted publisher configured, npm mints a
       # short-lived OIDC credential and attaches provenance automatically.
-      - name: Publish
-        run: npm publish
+      # `stage publish` needs npm >= 11.15 (installed above).
+      - name: Stage for release
+        run: npm stage publish
