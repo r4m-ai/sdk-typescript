@@ -1,0 +1,48 @@
+# Publish @r4mai/sdk to npm via trusted publishing (OIDC, no tokens).
+#
+# Fires when a v* tag is pushed (publish-sdks.sh creates and pushes the tag).
+# One-time setup before this works:
+#   1. Publish v1.0.0 once with a token (npm has a chicken-and-egg: you cannot
+#      register a trusted publisher until the package exists).
+#   2. On npmjs.com → the package → Settings → Trusted Publisher → GitHub
+#      Actions, set: org/user = r4m-ai, repo = sdk-typescript,
+#      workflow = publish.yml, environment = (leave blank).
+#   3. After that, every pushed v* tag publishes via OIDC — no NPM_TOKEN.
+#
+# This file is generated from the monorepo (scripts/sdk-templates/) — edit it
+# there, not in the published repo, or it will be overwritten on next publish.
+name: publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for OIDC trusted publishing + provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      # npm >= 11.5.1 is required for trusted publishing.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      # No NODE_AUTH_TOKEN: with a trusted publisher configured, npm mints a
+      # short-lived OIDC credential and attaches provenance automatically.
+      - name: Publish
+        run: npm publish

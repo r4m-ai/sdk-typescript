@@ -1,0 +1,29 @@
+{
+  "name": "@r4mai/sdk",
+  "version": "1.0.0",
+  "description": "Official TypeScript client for the r4m.ai route optimization API, auto-generated from the OpenAPI spec.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r4m-ai/sdk-typescript.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
