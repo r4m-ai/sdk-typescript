@@ -13,6 +13,7 @@ import {
 	createClient as createFetchClient,
 	type TDataShape,
 } from "./client";
+import { guardResponses } from "./guards";
 import type { Options } from "./sdk.gen";
 import * as operations from "./sdk.gen";
 import type {
@@ -59,11 +60,13 @@ type Bound<TData extends TDataShape> = Omit<Options<TData, false>, "client">;
  * deployment.
  */
 export function createClient(options: { apiKey: string; baseUrl?: string }) {
-	const bound: Client = createFetchClient(
-		createConfig<ClientOptions>({
-			baseUrl: options.baseUrl ?? DEFAULT_BASE_URL,
-			auth: options.apiKey,
-		}),
+	const bound: Client = guardResponses(
+		createFetchClient(
+			createConfig<ClientOptions>({
+				baseUrl: options.baseUrl ?? DEFAULT_BASE_URL,
+				auth: options.apiKey,
+			}),
+		),
 	);
 
 	return {

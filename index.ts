@@ -5,3 +5,4 @@ export type { Account, Address, ApiKey, ApiKeyCreated, BulkGeocodeData, BulkGeoc
 export * from './client.gen';
 export * from './wait';
 export * from './webhook';
+export * from './guards';
