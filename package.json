@@ -1,6 +1,6 @@
 {
   "name": "@r4mai/sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official TypeScript client for the r4m.ai route optimization API, auto-generated from the OpenAPI spec.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
