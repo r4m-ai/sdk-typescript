@@ -26,7 +26,7 @@ export type ErrorResponse = {
          */
         message: string;
         /**
-         * Optional machine-readable context. The message stands alone without it. CONCURRENCY_LIMIT_EXCEEDED carries `active`, `limit` and `activeOptimizationIds`.
+         * Optional machine-readable context. The message stands alone without it. CONCURRENCY_LIMIT_EXCEEDED carries `active`, `limit` and `activeOptimizationIds`; GEOCODING_UNRESOLVED carries `unresolved` (each with `index`, `address`, `reason` of not_found / ambiguous / imprecise, and `candidates`) and `geocodingPriceMicros`.
          */
         details?: {
             [key: string]: unknown;
@@ -36,17 +36,17 @@ export type ErrorResponse = {
 
 export type Address = {
     /**
-     * Human-readable label for this stop.
+     * The stop's address. With `lat`/`lng` it is only a label; without them it is geocoded (charged at the geocode price) and must resolve to exactly one place.
      */
     address: string;
     /**
-     * Latitude in decimal degrees.
+     * Latitude in decimal degrees. Optional: omit both `lat` and `lng` to have the address geocoded.
      */
-    lat: number;
+    lat?: number;
     /**
-     * Longitude in decimal degrees.
+     * Longitude in decimal degrees. Goes together with `lat`.
      */
-    lng: number;
+    lng?: number;
     /**
      * When true, marks this stop as the route's depot (start and/or end).
      */
@@ -69,6 +69,69 @@ export type Address = {
     priority?: number;
 };
 
+/**
+ * A stop as the optimization stored it: coordinates always present. `resolved` is set on a stop whose coordinates came from geocoding.
+ */
+export type OptimizationAddress = {
+    /**
+     * The stop's address. With `lat`/`lng` it is only a label; without them it is geocoded (charged at the geocode price) and must resolve to exactly one place.
+     */
+    address: string;
+    lat: number;
+    lng: number;
+    /**
+     * When true, marks this stop as the route's depot (start and/or end).
+     */
+    isDepot?: boolean;
+    /**
+     * Time spent at this stop, in seconds (service dwell time).
+     */
+    serviceTimeSeconds?: number;
+    /**
+     * Earliest local time this stop can be served, HH:MM. Taken as the first such time at or after the route starts, so 02:00 on a route leaving at 22:00 means the following morning.
+     */
+    timeWindowStart?: string;
+    /**
+     * Latest local time this stop can be served, HH:MM. The stop's `serviceTimeSeconds` must finish by then, not merely begin.
+     */
+    timeWindowEnd?: string;
+    /**
+     * Stop priority (1 = highest). Higher-priority stops are scheduled earlier.
+     */
+    priority?: number;
+    /**
+     * Present when the coordinates came from geocoding: the place that was matched.
+     */
+    resolved?: {
+        address: string;
+        precision: 'address' | 'street' | 'area' | 'city' | 'region' | 'other';
+        confidence?: string;
+    };
+};
+
+/**
+ * How addresses sent without coordinates are geocoded. The geocoder has no country or bounds parameter of its own, so this is the only way to rule out a homonym elsewhere.
+ */
+export type GeocodingOptions = {
+    /**
+     * Appended to every address that needs geocoding, e.g. "Springfield, MO" or "Berlin, Germany". The cheapest way to rule out homonyms elsewhere.
+     */
+    region?: string;
+    /**
+     * Bounding box; geocoding candidates outside it are discarded before anything else.
+     */
+    bounds?: {
+        south: number;
+        west: number;
+        north: number;
+        east: number;
+    };
+    /**
+     * Coarsest match still accepted. Default `address`: a street address, building or point of interest. `street` also accepts a road without a number; `city` accepts a town centre.
+     */
+    minPrecision?: 'address' | 'street' | 'area' | 'city' | 'region' | 'other';
+};
+
 export type CreateOptimizationRequest = {
     /**
      * List of addresses to optimize (minimum 3)
@@ -78,6 +141,10 @@ export type CreateOptimizationRequest = {
      * Optional optimization parameters
      */
     parameters?: OptimizationParameters;
+    /**
+     * Scope for geocoding the addresses sent without coordinates
+     */
+    geocoding?: GeocodingOptions;
     /**
      * URL to receive an HMAC-signed webhook when the optimization completes. Must be reachable from the public internet; for local development, expose your server with a tunnel such as ngrok and pass its https URL.
      */
@@ -89,14 +156,18 @@ export type Optimization = {
     status: 'pending' | 'processing' | 'completed' | 'failed';
     parameters?: OptimizationParameters;
     /**
-     * Input addresses
+     * The stops, with coordinates settled (geocoded ones carry `resolved`)
      */
-    addresses?: Array<Address>;
+    addresses?: Array<OptimizationAddress>;
     result?: OptimizationResult;
     /**
      * What this optimization cost, in micro-dollars (1 USD = 1 000 000)
      */
     priceMicros: number;
+    /**
+     * On the create response only, when addresses were geocoded as part of the request: what that lookup cost, in micro-dollars, charged separately
+     */
+    geocodingPriceMicros?: number;
     /**
      * Configured webhook URL
      */
@@ -538,6 +609,10 @@ export type CreateOptimizationErrors = {
      * Insufficient balance
      */
     402: ErrorResponse;
+    /**
+     * An address sent without coordinates could not be pinned to one precise place (GEOCODING_UNRESOLVED); `details.unresolved` lists each with its reason and candidates
+     */
+    422: ErrorResponse;
     /**
      * Busy — one of two codes. `RATE_LIMITED`: the per-minute safety limit; back off for `Retry-After` and retry. `CONCURRENCY_LIMIT_EXCEEDED`: as many optimizations as the plan allows are already pending or processing; `error.details` carries `active`, `limit` and `activeOptimizationIds` — poll one of those until it finishes, then retry. An optimization that has not finished within 15 minutes frees its slot by itself and is refunded.
      */

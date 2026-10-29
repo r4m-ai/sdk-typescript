@@ -32,7 +32,7 @@ export const listOptimizations = <ThrowOnError extends boolean = false>(options?
 /**
  * Create optimization
  *
- * Submit addresses for route optimization. The request is processed asynchronously. The price is charged immediately based on the number of addresses. Poll the returned ID or configure a webhook to receive the result.
+ * Submit addresses for route optimization. The request is processed asynchronously: poll the returned ID or configure a webhook to receive the result. The price is charged immediately based on the number of addresses. An address sent without `lat`/`lng` is geocoded as part of the request, charged separately at the geocode price (`geocodingPriceMicros`), and must resolve to exactly one precise place — use `geocoding.region` or `geocoding.bounds` to rule out homonyms; otherwise the whole request is refused with 422 GEOCODING_UNRESOLVED and the candidates, and only the lookup is charged.
  */
 export const createOptimization = <ThrowOnError extends boolean = false>(options: Options<CreateOptimizationData, ThrowOnError>): RequestResult<CreateOptimizationResponses, CreateOptimizationErrors, ThrowOnError> => (options.client ?? client).post<CreateOptimizationResponses, CreateOptimizationErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
