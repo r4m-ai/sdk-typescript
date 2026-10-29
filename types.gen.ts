@@ -26,7 +26,7 @@ export type ErrorResponse = {
          */
         message: string;
         /**
-         * Optional machine-readable context. The message stands alone without it. CONCURRENCY_LIMIT_EXCEEDED carries `active`, `limit` and `activeOptimizationIds`; GEOCODING_UNRESOLVED carries `unresolved` (each with `index`, `address`, `reason` of not_found / ambiguous / imprecise, and `candidates`) and `geocodingPriceMicros`.
+         * Optional machine-readable context. The message stands alone without it. CONCURRENCY_LIMIT_EXCEEDED carries `active`, `limit` and `activeOptimizationIds`; GEOCODING_UNRESOLVED carries `unresolved` (each with `index`, `address`, `reason` of not_found / ambiguous / imprecise, and `candidates`), `resolved` (the stops that did geocode, each with `index`, `address`, `lat`, `lng` and the matched place — paid for, so resend them as coordinates) and `geocodingPriceMicros`.
          */
         details?: {
             [key: string]: unknown;
@@ -610,7 +610,7 @@ export type CreateOptimizationErrors = {
      */
     402: ErrorResponse;
     /**
-     * An address sent without coordinates could not be pinned to one precise place (GEOCODING_UNRESOLVED); `details.unresolved` lists each with its reason and candidates
+     * An address sent without coordinates could not be pinned to one precise place (GEOCODING_UNRESOLVED); `details.unresolved` lists each with its reason and candidates, `details.resolved` the coordinates of those that did resolve
      */
     422: ErrorResponse;
     /**
