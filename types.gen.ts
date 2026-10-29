@@ -94,9 +94,9 @@ export type Optimization = {
     addresses?: Array<Address>;
     result?: OptimizationResult;
     /**
-     * Credits consumed by this optimization
+     * What this optimization cost, in micro-dollars (1 USD = 1 000 000)
      */
-    creditsCost: number;
+    priceMicros: number;
     /**
      * Configured webhook URL
      */
@@ -265,19 +265,20 @@ export type ApiKey = {
 };
 
 export type Usage = {
+    currency: 'USD';
     /**
-     * Current prepaid credit balance
+     * Current prepaid balance in micro-dollars (1 USD = 1 000 000). Integer, exact: the ledger always sums to it.
      */
-    balance: number;
+    balanceMicros: number;
     /**
-     * Recent credit movements, newest first
+     * Recent movements, newest first
      */
     ledger: Array<{
         id: string;
         /**
-         * Signed credit change (negative for usage)
+         * Signed change in micro-dollars (negative for usage)
          */
-        delta: number;
+        amountMicros: number;
         reason: 'grant' | 'topup' | 'usage' | 'refund' | 'adjustment';
         /**
          * What was billed (usage/refund rows only)
@@ -361,9 +362,9 @@ export type GeocodeResponse = {
     data: {
         results?: Array<GeocodeResult>;
         /**
-         * Credits consumed by this request
+         * What this request cost, in micro-dollars (1 USD = 1 000 000)
          */
-        creditsCost?: number;
+        priceMicros?: number;
     };
 };
 
@@ -376,16 +377,17 @@ export type Account = {
     id: string;
     email: string;
     name?: string;
+    currency: 'USD';
     /**
      * Current subscription plan
      */
     planTier: 'free' | 'pro' | 'enterprise';
     /**
-     * Current prepaid credit balance
+     * Current prepaid balance in micro-dollars (1 USD = 1 000 000)
      */
-    creditBalance: number;
+    balanceMicros: number;
     /**
-     * The limits this account lives under (capacity, not credits). An Enterprise account shows its own agreed numbers.
+     * The limits this account lives under (capacity, not money). An Enterprise account shows its own agreed numbers.
      */
     plan: {
         name: string;
@@ -421,9 +423,9 @@ export type MppChallenge = {
     amountCents: number;
     currency: 'usd';
     /**
-     * Credits granted for this amount (incl. volume bonus)
+     * What the balance gains for this amount, in micro-dollars (incl. volume bonus)
      */
-    credits: number;
+    grantMicros: number;
     bonusPercent?: number;
     /**
      * Where to fulfill the payment
@@ -437,7 +439,7 @@ export type MppChallenge = {
 
 export type TopupReceipt = {
     paymentId: string;
-    credits: number;
+    grantMicros: number;
     amountCents: number;
     /**
      * New balance, or null if this was a duplicate
@@ -514,7 +516,7 @@ export type CreateOptimizationErrors = {
      */
     401: ErrorResponse;
     /**
-     * Credit quota exceeded
+     * Insufficient balance
      */
     402: ErrorResponse;
     /**
@@ -763,7 +765,7 @@ export type ForwardGeocodeErrors = {
      */
     401: ErrorResponse;
     /**
-     * Credit quota exceeded
+     * Insufficient balance
      */
     402: ErrorResponse;
     /**
@@ -800,7 +802,7 @@ export type BulkGeocodeErrors = {
      */
     401: ErrorResponse;
     /**
-     * Credit quota exceeded
+     * Insufficient balance
      */
     402: ErrorResponse;
     /**

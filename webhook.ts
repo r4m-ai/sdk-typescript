@@ -27,9 +27,9 @@ export type OptimizationFailedEvent = {
 	optimizationId: string;
 	error: {
 		/**
-		 * `NO_ROUTES` — the engine produced no routes; the credits were refunded.
-		 * `PROCESSING_FAILED` — the job threw; the credits were refunded.
-		 * `TIMED_OUT` — it did not finish within 15 minutes; the credits were
+		 * `NO_ROUTES` — the engine produced no routes; the charge was refunded.
+		 * `PROCESSING_FAILED` — the job threw; the charge was refunded.
+		 * `TIMED_OUT` — it did not finish within 15 minutes; the charge was
 		 * refunded and its concurrency slot released.
 		 *
 		 * Widened to string so a code we add later does not break your build;

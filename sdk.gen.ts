@@ -32,7 +32,7 @@ export const listOptimizations = <ThrowOnError extends boolean = false>(options?
 /**
  * Create optimization
  *
- * Submit addresses for route optimization. The request is processed asynchronously. Credits are deducted immediately based on the number of addresses. Poll the returned ID or configure a webhook to receive the result.
+ * Submit addresses for route optimization. The request is processed asynchronously. The price is charged immediately based on the number of addresses. Poll the returned ID or configure a webhook to receive the result.
  */
 export const createOptimization = <ThrowOnError extends boolean = false>(options: Options<CreateOptimizationData, ThrowOnError>): RequestResult<CreateOptimizationResponses, CreateOptimizationErrors, ThrowOnError> => (options.client ?? client).post<CreateOptimizationResponses, CreateOptimizationErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -47,7 +47,7 @@ export const createOptimization = <ThrowOnError extends boolean = false>(options
 /**
  * Delete optimization
  *
- * Permanently delete an optimization and its associated data. Credits are not refunded.
+ * Permanently delete an optimization and its associated data. The charge is not refunded.
  */
 export const deleteOptimization = <ThrowOnError extends boolean = false>(options: Options<DeleteOptimizationData, ThrowOnError>): RequestResult<DeleteOptimizationResponses, DeleteOptimizationErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOptimizationResponses, DeleteOptimizationErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -106,7 +106,7 @@ export const revokeApiKey = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Get usage
  *
- * Get the current prepaid credit balance and recent ledger activity. The balance does not expire and there is no billing period to reset.
+ * Get the current prepaid balance (micro-dollars) and recent ledger activity. The balance does not expire and there is no billing period to reset.
  */
 export const getUsage = <ThrowOnError extends boolean = false>(options?: Options<GetUsageData, ThrowOnError>): RequestResult<GetUsageResponses, GetUsageErrors, ThrowOnError> => (options?.client ?? client).get<GetUsageResponses, GetUsageErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -132,7 +132,7 @@ export const forwardGeocode = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Bulk geocode
  *
- * Geocode multiple addresses in a single request, up to your plan's maximum addresses per request. Credits are charged per address.
+ * Geocode multiple addresses in a single request, up to your plan's maximum addresses per request. Priced per address.
  */
 export const bulkGeocode = <ThrowOnError extends boolean = false>(options: Options<BulkGeocodeData, ThrowOnError>): RequestResult<BulkGeocodeResponses, BulkGeocodeErrors, ThrowOnError> => (options.client ?? client).post<BulkGeocodeResponses, BulkGeocodeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -156,7 +156,7 @@ export const getAccount = <ThrowOnError extends boolean = false>(options?: Optio
 });
 
 /**
- * Top up credits (machine payment)
+ * Top up the balance (machine payment)
  *
  * Machine-payment top-up. Without a credential, returns a 402 with an MPP challenge describing what to pay. In sandbox mode, pass sandboxPaymentId to fulfill immediately and receive a receipt. Returns 501 when machine payments are not enabled on the deployment.
  */
