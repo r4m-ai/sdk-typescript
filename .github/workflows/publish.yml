@@ -1,11 +1,10 @@
-# Stage @r4mai/sdk on npm via trusted publishing (OIDC, no tokens).
+# Publish @r4mai/sdk on npm via trusted publishing (OIDC, no tokens).
 #
-# Fires when a v* tag is pushed (publish-sdks.sh creates and pushes the tag).
-# The version is STAGED, not published: it stays hidden until a maintainer
-# approves it with 2FA — on npmjs.com (the package's "Staged Packages" tab →
-# Approve) or with `npm stage approve <stage-id>` (`npm stage list @r4mai/sdk`
-# shows the id). That approval is the one human step of a release; it needs
-# a browser, not a laptop with credentials.
+# Fires when a v* tag is pushed (publish-sdks.sh creates and pushes the tag)
+# and publishes the version outright, with provenance. No human step: the
+# tag is the release. (Staging with 2FA approval was tried first and dropped
+# on 2026-10-29 — one more thing to forget, for a package generated from a
+# reviewed spec.)
 #
 # One-time setup before this works:
 #   1. The package must exist on npm (the first version was published by
@@ -13,10 +12,9 @@
 #      package yet).
 #   2. On npmjs.com → the package → Settings → Trusted Publisher → GitHub
 #      Actions, set: org/user = r4m-ai, repo = sdk-typescript,
-#      workflow = publish.yml, environment = (leave blank). "Allowed actions"
-#      can stay at its default: `npm stage publish` is always allowed, and
-#      direct `npm publish` is deliberately NOT enabled.
-#   3. After that, every pushed v* tag stages via OIDC — no NPM_TOKEN.
+#      workflow = publish.yml, environment = (leave blank). Under "Allowed
+#      actions" enable publishing and dist-tags for the workflow.
+#   3. After that, every pushed v* tag publishes via OIDC — no NPM_TOKEN.
 #
 # This file is generated from the monorepo (scripts/sdk-templates/) — edit it
 # there, not in the published repo, or it will be overwritten on next publish.
@@ -53,6 +51,5 @@ jobs:
 
       # No NODE_AUTH_TOKEN: with a trusted publisher configured, npm mints a
       # short-lived OIDC credential and attaches provenance automatically.
-      # `stage publish` needs npm >= 11.15 (installed above).
-      - name: Stage for release
-        run: npm stage publish
+      - name: Publish
+        run: npm publish --provenance --access public
