@@ -387,31 +387,6 @@ export type BulkGeocodeRequest = {
     detailed?: boolean;
 };
 
-export type GeocodeResponse = {
-    success: true;
-    data: {
-        result: GeocodeResult;
-        /**
-         * What this request cost, in micro-dollars (1 USD = 1 000 000)
-         */
-        priceMicros: number;
-    };
-};
-
-export type GeocodeBatchResponse = {
-    success: true;
-    data: {
-        /**
-         * Exactly one result per distinct address sent, in the order first sent
-         */
-        results: Array<GeocodeResult>;
-        /**
-         * What this request cost, in micro-dollars (1 USD = 1 000 000); duplicates are charged once
-         */
-        priceMicros: number;
-    };
-};
-
 /**
  * "unavailable" when the plan does not offer the parameter, otherwise the largest value it accepts
  */
@@ -824,7 +799,16 @@ export type ForwardGeocodeResponses = {
     /**
      * Geocoding results
      */
-    200: GeocodeResponse;
+    200: {
+        success: true;
+        data: {
+            result: GeocodeResult;
+            /**
+             * What this request cost, in micro-dollars (1 USD = 1 000 000)
+             */
+            priceMicros: number;
+        };
+    };
 };
 
 export type ForwardGeocodeResponse = ForwardGeocodeResponses[keyof ForwardGeocodeResponses];
@@ -861,7 +845,19 @@ export type BulkGeocodeResponses = {
     /**
      * Geocoding results
      */
-    200: GeocodeBatchResponse;
+    200: {
+        success: true;
+        data: {
+            /**
+             * Exactly one result per distinct address sent, in the order first sent
+             */
+            results: Array<GeocodeResult>;
+            /**
+             * What this request cost, in micro-dollars (1 USD = 1 000 000); duplicates are charged once
+             */
+            priceMicros: number;
+        };
+    };
 };
 
 export type BulkGeocodeResponse = BulkGeocodeResponses[keyof BulkGeocodeResponses];
