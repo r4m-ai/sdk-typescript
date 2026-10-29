@@ -296,35 +296,65 @@ export type Usage = {
     }>;
 };
 
-export type GeocodeResult = {
+export type GeocodeCandidate = {
     /**
-     * Whether the address was successfully geocoded
+     * The normalized address the geocoder matched
      */
-    geocoded: boolean;
-    /**
-     * The original address string submitted
-     */
-    original: string;
-    /**
-     * The normalized address returned by the geocoder
-     */
-    address?: string;
+    address: string;
     /**
      * Latitude
      */
-    lat?: number;
+    lat: number;
     /**
      * Longitude
      */
+    lng: number;
+    /**
+     * How exact the match is. `address` is a specific place you can drive to (a street address, building or point of interest); `street` is a road without a number, `area` a neighborhood or postal code, `city` a town, `region` a state or country. Only `address` should be routed to without asking.
+     */
+    precision: 'address' | 'street' | 'area' | 'city' | 'region' | 'other';
+    /**
+     * The geocoder's own confidence label, e.g. `high` or `medium`
+     */
+    confidence: string;
+};
+
+/**
+ * One result per distinct address sent. `ok` carries the single match inline (`address`, `lat`, `lng`, `precision`, `confidence`); `ambiguous` carries the matches in `candidates` and nothing inline; `not_found` carries only `original`.
+ */
+export type GeocodeResult = {
+    /**
+     * The address string exactly as sent. Match results to your own data by this field, never by position.
+     */
+    original: string;
+    /**
+     * `ok`: one match. `ambiguous`: several places fit (e.g. a bare "Springfield"); see `candidates`, or add a city/state to the input and retry. `not_found`: the geocoder could not place the string.
+     */
+    status: 'ok' | 'ambiguous' | 'not_found';
+    /**
+     * The normalized address (status `ok` only)
+     */
+    address?: string;
+    /**
+     * Latitude (status `ok` only)
+     */
+    lat?: number;
+    /**
+     * Longitude (status `ok` only)
+     */
     lng?: number;
     /**
-     * Comma-separated place types for the match, e.g. `premise, street_address`
+     * How exact the match is (status `ok` only); only `address` is exact enough to drive to
      */
-    type?: string;
+    precision?: 'address' | 'street' | 'area' | 'city' | 'region' | 'other';
     /**
-     * Geocoding confidence level (e.g., high, medium, low)
+     * The geocoder's own confidence label (status `ok` only)
      */
     confidence?: string;
+    /**
+     * Every place that fits (status `ambiguous` only)
+     */
+    candidates?: Array<GeocodeCandidate>;
 };
 
 export type ForwardGeocodeRequest = {
@@ -344,7 +374,7 @@ export type ForwardGeocodeRequest = {
 
 export type BulkGeocodeRequest = {
     /**
-     * Array of address strings to geocode (1-100)
+     * Address strings to geocode (1-100). A string sent twice is geocoded and charged once.
      */
     addresses: Array<string>;
     /**
@@ -360,11 +390,25 @@ export type BulkGeocodeRequest = {
 export type GeocodeResponse = {
     success: true;
     data: {
-        results?: Array<GeocodeResult>;
+        result: GeocodeResult;
         /**
          * What this request cost, in micro-dollars (1 USD = 1 000 000)
          */
-        priceMicros?: number;
+        priceMicros: number;
+    };
+};
+
+export type GeocodeBatchResponse = {
+    success: true;
+    data: {
+        /**
+         * Exactly one result per distinct address sent, in the order first sent
+         */
+        results: Array<GeocodeResult>;
+        /**
+         * What this request cost, in micro-dollars (1 USD = 1 000 000); duplicates are charged once
+         */
+        priceMicros: number;
     };
 };
 
@@ -817,7 +861,7 @@ export type BulkGeocodeResponses = {
     /**
      * Geocoding results
      */
-    200: GeocodeResponse;
+    200: GeocodeBatchResponse;
 };
 
 export type BulkGeocodeResponse = BulkGeocodeResponses[keyof BulkGeocodeResponses];

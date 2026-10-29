@@ -117,7 +117,7 @@ export const getUsage = <ThrowOnError extends boolean = false>(options?: Options
 /**
  * Forward geocode
  *
- * Geocode a single address to coordinates. Returns one or more candidate results with latitude, longitude, and confidence.
+ * Geocode a single address to coordinates. The result's `status` is `ok` (one match, coordinates inline), `ambiguous` (several `candidates`; add a city or state to the input and retry) or `not_found`. `precision` says how exact the match is: only `address` is exact enough to drive to. Priced per address.
  */
 export const forwardGeocode = <ThrowOnError extends boolean = false>(options: Options<ForwardGeocodeData, ThrowOnError>): RequestResult<ForwardGeocodeResponses, ForwardGeocodeErrors, ThrowOnError> => (options.client ?? client).post<ForwardGeocodeResponses, ForwardGeocodeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -132,7 +132,7 @@ export const forwardGeocode = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Bulk geocode
  *
- * Geocode multiple addresses in a single request, up to your plan's maximum addresses per request. Priced per address.
+ * Geocode multiple addresses in a single request, up to your plan's maximum addresses per request. Returns exactly one result per distinct address, in the order first sent: match results to your own data by `original`, never by position. A string sent twice is geocoded and charged once. Each result's `status` is `ok`, `ambiguous` (several `candidates`, e.g. a bare "Springfield") or `not_found`; only `precision: "address"` is exact enough to drive to. Priced per distinct address.
  */
 export const bulkGeocode = <ThrowOnError extends boolean = false>(options: Options<BulkGeocodeData, ThrowOnError>): RequestResult<BulkGeocodeResponses, BulkGeocodeErrors, ThrowOnError> => (options.client ?? client).post<BulkGeocodeResponses, BulkGeocodeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
