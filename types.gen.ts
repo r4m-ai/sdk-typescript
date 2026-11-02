@@ -471,13 +471,13 @@ export type Account = {
     /**
      * Current subscription plan
      */
-    planTier: 'free' | 'pro' | 'enterprise';
+    planTier: 'free' | 'pro' | 'custom';
     /**
      * Current prepaid balance in micro-dollars (1 USD = 1 000 000)
      */
     balanceMicros: number;
     /**
-     * The limits this account lives under (capacity, not money). An Enterprise account shows its own agreed numbers.
+     * The limits this account lives under (capacity, not money). An account on individual terms shows its own agreed numbers.
      */
     plan: {
         name: string;
