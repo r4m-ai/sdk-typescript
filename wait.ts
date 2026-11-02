@@ -36,6 +36,26 @@ import type {
 /** Production host, baked in at generation time. */
 export const DEFAULT_BASE_URL = "https://r4m.ai";
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * Refuse a base URL that would carry the API key over plain http. Only
+ * localhost may be http, for a server running on the developer's machine.
+ */
+export function assertSafeBaseUrl(baseUrl: string): void {
+	let url: URL;
+	try {
+		url = new URL(baseUrl);
+	} catch {
+		throw new Error(`baseUrl is not a URL: ${JSON.stringify(baseUrl)}`);
+	}
+	if (url.protocol === "https:") return;
+	if (url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname)) return;
+	throw new Error(
+		`baseUrl must be https (got ${url.protocol}//${url.host}): an API key must never travel in clear text. Only http://localhost is allowed.`,
+	);
+}
+
 /**
  * Per-call options with the client removed — the client is already bound.
  *
@@ -56,14 +76,18 @@ type Bound<TData extends TDataShape> = Omit<Options<TData, false>, "client">;
  * (The generated standalone functions are still exported for tree-shaking, and
  * take a `client` of their own.)
  *
- * `baseUrl` is optional and normally omitted. Set it to reach a staging
- * deployment.
+ * `baseUrl` is optional and normally omitted: the host is built in. It exists
+ * for r4m.ai's own staging deployments and must be https — a plain-http URL
+ * (other than localhost) would send your API key in clear text, so it is
+ * refused.
  */
 export function createClient(options: { apiKey: string; baseUrl?: string }) {
+	const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
+	assertSafeBaseUrl(baseUrl);
 	const bound: Client = guardResponses(
 		createFetchClient(
 			createConfig<ClientOptions>({
-				baseUrl: options.baseUrl ?? DEFAULT_BASE_URL,
+				baseUrl,
 				auth: options.apiKey,
 			}),
 		),

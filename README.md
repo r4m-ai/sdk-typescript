@@ -32,7 +32,9 @@ Every endpoint is exported as a typed function. Pass `baseUrl` and your raw
 
 ## Waiting and busy
 
-`createClient({ apiKey })` binds the key once and adds the helpers:
+`createClient({ apiKey })` binds the key once and adds the helpers (its
+optional `baseUrl` is for r4m.ai's own staging deployments and must be
+https; plain http is refused except for localhost):
 
 - `createOptimizationAndWaitForRoutes` — submit and return the finished plan.
 - `waitForRoutes(id)` — wait on an id you already have.
