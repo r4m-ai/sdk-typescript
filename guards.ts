@@ -54,7 +54,7 @@ function hintFor(
 		const landed = new URL(response.url);
 		const asked = new URL(request.url);
 		if (landed.hostname !== asked.hostname) {
-			return `The request to ${asked.hostname} was redirected to ${landed.hostname}: the deployment is probably behind an authentication wall that API clients cannot pass (for Vercel Deployment Protection, send the x-vercel-protection-bypass header).`;
+			return `The request to ${asked.hostname} was redirected to ${landed.hostname}: that host is probably behind an authentication wall API clients cannot pass. Check baseUrl — the public API needs none.`;
 		}
 	} catch {
 		// Not URLs we can compare; no hint.
