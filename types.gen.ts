@@ -146,7 +146,7 @@ export type CreateOptimizationRequest = {
      */
     geocoding?: GeocodingOptions;
     /**
-     * URL to receive an HMAC-signed webhook when the optimization completes. Must be reachable from the public internet; for local development, expose your server with a tunnel such as ngrok and pass its https URL.
+     * Public https URL to receive an HMAC-signed webhook when the optimization completes or fails. Plain http, an IP address instead of a host name, localhost and names that resolve to private-network addresses are refused, and redirects are not followed; for local development, expose your server with a tunnel such as ngrok and pass its https URL.
      */
     webhookUrl?: string;
 };
@@ -365,6 +365,14 @@ export type Usage = {
         refId?: string;
         createdAt: string;
     }>;
+};
+
+export type WebhookSecret = {
+    /**
+     * The signing secret (`whsec_…`)
+     */
+    secret: string;
+    createdAt: string;
 };
 
 export type GeocodeCandidate = {
@@ -693,6 +701,10 @@ export type GetOptimizationErrors = {
      */
     404: ErrorResponse;
     /**
+     * The optimization is still pending or processing; delete it once it has finished
+     */
+    409: ErrorResponse;
+    /**
      * Rate limit exceeded. Limits protect the backend rather than the plan, so normal use should never reach one — back off for the interval in `Retry-After` and retry.
      */
     429: ErrorResponse;
@@ -968,6 +980,44 @@ export type GetAccountResponses = {
 };
 
 export type GetAccountResponse = GetAccountResponses[keyof GetAccountResponses];
+
+export type GetWebhookSecretData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/webhook-secret';
+};
+
+export type GetWebhookSecretErrors = {
+    /**
+     * Missing or invalid API key
+     */
+    401: ErrorResponse;
+    /**
+     * Rate limit exceeded. Limits protect the backend rather than the plan, so normal use should never reach one — back off for the interval in `Retry-After` and retry.
+     */
+    429: ErrorResponse;
+};
+
+export type GetWebhookSecretError = GetWebhookSecretErrors[keyof GetWebhookSecretErrors];
+
+export type GetWebhookSecretResponses = {
+    /**
+     * The account's webhook secrets
+     */
+    200: {
+        success: true;
+        data: {
+            primary: WebhookSecret;
+            /**
+             * The secret being rotated out, while a rotation is in progress; null otherwise
+             */
+            previous: WebhookSecret;
+        };
+    };
+};
+
+export type GetWebhookSecretResponse = GetWebhookSecretResponses[keyof GetWebhookSecretResponses];
 
 export type TopupCreditsData = {
     body?: {

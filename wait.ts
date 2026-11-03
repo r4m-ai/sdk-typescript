@@ -26,6 +26,7 @@ import type {
 	GetAccountData,
 	GetOptimizationData,
 	GetUsageData,
+	GetWebhookSecretData,
 	ListApiKeysData,
 	ListOptimizationsData,
 	Optimization,
@@ -110,6 +111,8 @@ export function createClient(options: { apiKey: string; baseUrl?: string }) {
 			operations.getOptimization({ ...o, client: bound }),
 		getUsage: (o?: Bound<GetUsageData>) =>
 			operations.getUsage({ ...o, client: bound }),
+		getWebhookSecret: (o?: Bound<GetWebhookSecretData>) =>
+			operations.getWebhookSecret({ ...o, client: bound }),
 		listApiKeys: (o?: Bound<ListApiKeysData>) =>
 			operations.listApiKeys({ ...o, client: bound }),
 		listOptimizations: (o?: Bound<ListOptimizationsData>) =>

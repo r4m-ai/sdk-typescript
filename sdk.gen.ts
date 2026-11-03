@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BulkGeocodeData, BulkGeocodeErrors, BulkGeocodeResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateOptimizationData, CreateOptimizationErrors, CreateOptimizationResponses, DeleteOptimizationData, DeleteOptimizationErrors, DeleteOptimizationResponses, ForwardGeocodeData, ForwardGeocodeErrors, ForwardGeocodeResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetOptimizationData, GetOptimizationErrors, GetOptimizationResponses, GetUsageData, GetUsageErrors, GetUsageResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListOptimizationsData, ListOptimizationsErrors, ListOptimizationsResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, TopupCreditsData, TopupCreditsErrors, TopupCreditsResponses } from './types.gen';
+import type { BulkGeocodeData, BulkGeocodeErrors, BulkGeocodeResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateOptimizationData, CreateOptimizationErrors, CreateOptimizationResponses, DeleteOptimizationData, DeleteOptimizationErrors, DeleteOptimizationResponses, ForwardGeocodeData, ForwardGeocodeErrors, ForwardGeocodeResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetOptimizationData, GetOptimizationErrors, GetOptimizationResponses, GetUsageData, GetUsageErrors, GetUsageResponses, GetWebhookSecretData, GetWebhookSecretErrors, GetWebhookSecretResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListOptimizationsData, ListOptimizationsErrors, ListOptimizationsResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, TopupCreditsData, TopupCreditsErrors, TopupCreditsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -152,6 +152,17 @@ export const bulkGeocode = <ThrowOnError extends boolean = false>(options: Optio
 export const getAccount = <ThrowOnError extends boolean = false>(options?: Options<GetAccountData, ThrowOnError>): RequestResult<GetAccountResponses, GetAccountErrors, ThrowOnError> => (options?.client ?? client).get<GetAccountResponses, GetAccountErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/account',
+    ...options
+});
+
+/**
+ * Get webhook signing secrets
+ *
+ * The secrets every webhook delivery is signed with (HMAC-SHA256 of the raw body, hex, in the X-Webhook-Signature header). `primary` signs every delivery; `previous` is set during a rotation, so verify against both until it is gone. The account always has a primary secret. Anyone holding an API key can read this: if a key leaks, revoke it AND rotate the webhook secret in the console. Not cached.
+ */
+export const getWebhookSecret = <ThrowOnError extends boolean = false>(options?: Options<GetWebhookSecretData, ThrowOnError>): RequestResult<GetWebhookSecretResponses, GetWebhookSecretErrors, ThrowOnError> => (options?.client ?? client).get<GetWebhookSecretResponses, GetWebhookSecretErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/webhook-secret',
     ...options
 });
 
