@@ -223,7 +223,7 @@ export type OptimizationParameters = {
      */
     maxRouteDurationSeconds?: number;
     /**
-     * Maximum distance of one route, in meters. Applied to the whole kilometre, so a cap under 1 km becomes 1 km. Availability and ceiling depend on your plan.
+     * Maximum distance of one route, in meters. Applied in steps of 1609 meters, rounded down, so a cap under 1609 becomes 1609. Availability and ceiling depend on your plan.
      */
     maxRouteDistanceMeters?: number;
 };
