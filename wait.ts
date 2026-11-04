@@ -2,10 +2,15 @@
 // the generator wipes sdks/typescript/ on every run, so this file lives in
 // scripts/sdk-templates/typescript/ and is copied back afterwards.
 //
-// Everything here sits ON TOP of the generated calls; nothing is shadowed.
-// `createOptimization` keeps returning a receipt, so setting a `webhookUrl`
-// and waiting, or setting one and polling yourself, all stay legal — the
-// delivery modes are deliberately not mutually exclusive.
+// This is the SDK's public face; the generated calls are its internals. What
+// the generator produces is shaped by its own conventions (`data.data`, a field
+// per status code), which a caller should not have to learn. So every method of
+// `createClient` returns a `Result`: read `error` first, and only then does the
+// compiler let you at `data`.
+//
+// `createOptimization` keeps returning a receipt, so setting a `webhookUrl` and
+// waiting, or setting one and polling yourself, all stay legal — the delivery
+// modes are deliberately not mutually exclusive.
 
 import {
 	type Client,
@@ -13,7 +18,7 @@ import {
 	createClient as createFetchClient,
 	type TDataShape,
 } from "./client";
-import { guardResponses } from "./guards";
+import { guardResponses, UnexpectedResponseError } from "./guards";
 import type { Options } from "./sdk.gen";
 import * as operations from "./sdk.gen";
 import type {
@@ -58,14 +63,135 @@ export function assertSafeBaseUrl(baseUrl: string): void {
 }
 
 /**
- * Per-call options with the client removed — the client is already bound.
+ * What every client method resolves to. The two shapes exclude each other, so
+ * `data` cannot be read until `error` has been ruled out:
  *
- * `ThrowOnError` is pinned to `false` rather than left at its `boolean`
- * default. Left open, inference widened every result to "either the throwing
- * shape or the returning one", so `const { data, error } = await ...` no
- * longer narrowed and `error` vanished from the type. Callers who want the
- * throwing behaviour can use the standalone functions with `client: r4m.http`.
+ *     const { data, error } = await r4m.getAccount();
+ *     data.email;            // does not compile: `data` may be undefined
+ *     if (error) throw error;
+ *     data.email;            // fine
+ *
+ * The promise itself never rejects: a refused request and a network failure
+ * arrive the same way, so there is one way to handle failure, not two.
  */
+export type Result<T, E extends Error = ApiError> =
+	| { data: T; error: undefined }
+	| { data: undefined; error: E };
+
+/** The API refused the request, or the request never got an answer. */
+export class ApiError extends Error {
+	/**
+	 * Machine-readable: an API error code such as `INSUFFICIENT_FUNDS`, or one of
+	 * `NETWORK_ERROR`, `ABORTED`, `UNEXPECTED_RESPONSE`, `UNEXPECTED_ERROR` when
+	 * the API did not get to answer.
+	 */
+	readonly code: string;
+	/** The HTTP status; undefined when no response arrived. */
+	readonly status: number | undefined;
+	/** Optional machine-readable context. The message stands alone without it. */
+	readonly details: Record<string, unknown> | undefined;
+	/** How long the server asked us to wait, on a 429. */
+	readonly retryAfterMs: number | undefined;
+	/** The response body as sent, for fields outside the error envelope. */
+	readonly body: unknown;
+
+	constructor(init: {
+		code: string;
+		message: string;
+		status?: number;
+		details?: Record<string, unknown>;
+		retryAfterMs?: number;
+		body?: unknown;
+		cause?: unknown;
+	}) {
+		super(init.message, { cause: init.cause });
+		this.name = "ApiError";
+		this.code = init.code;
+		this.status = init.status;
+		this.details = init.details;
+		this.retryAfterMs = init.retryAfterMs;
+		this.body = init.body;
+	}
+}
+
+function toApiError(error: unknown, response: Response | undefined): ApiError {
+	if (error instanceof UnexpectedResponseError) {
+		return new ApiError({
+			code: "UNEXPECTED_RESPONSE",
+			message: error.message,
+			status: error.status,
+			cause: error,
+		});
+	}
+	if (!response) {
+		return new ApiError({
+			code: "NETWORK_ERROR",
+			message:
+				error instanceof Error
+					? error.message
+					: "The request did not reach the API",
+			cause: error,
+		});
+	}
+	const body = asErrorBody(error);
+	return new ApiError({
+		code: body.error?.code ?? "UNEXPECTED_RESPONSE",
+		message: body.error?.message ?? `The API answered HTTP ${response.status}`,
+		status: response.status,
+		details: body.error?.details,
+		retryAfterMs: response.status === 429 ? retryAfterMs(response) : undefined,
+		body: error,
+	});
+}
+
+/** A generated call as a `Result`, with the `{ success, data }` envelope gone. */
+async function settle<T>(
+	pending: Promise<{
+		data?: { data: T };
+		error?: unknown;
+		response?: Response;
+	}>,
+): Promise<Result<T>> {
+	try {
+		const { data, error, response } = await pending;
+		if (!error && data?.data !== undefined) {
+			return { data: data.data, error: undefined };
+		}
+		return { data: undefined, error: toApiError(error, response) };
+	} catch (cause) {
+		return { data: undefined, error: toApiError(cause, undefined) };
+	}
+}
+
+/** A waiting helper, which throws internally, as a `Result`. */
+async function settleWait<T, E extends Error>(
+	run: () => Promise<T>,
+	signal?: AbortSignal | null,
+): Promise<Result<T, E | ApiError>> {
+	try {
+		return { data: await run(), error: undefined };
+	} catch (cause) {
+		if (
+			cause instanceof ApiError ||
+			cause instanceof BusyError ||
+			cause instanceof OptimizationFailedError ||
+			cause instanceof OptimizationTimeoutError ||
+			cause instanceof ActiveOptimizationsTimeoutError
+		) {
+			return { data: undefined, error: cause as E | ApiError };
+		}
+		return {
+			data: undefined,
+			error: new ApiError({
+				code: signal?.aborted ? "ABORTED" : "UNEXPECTED_ERROR",
+				message: cause instanceof Error ? cause.message : String(cause),
+				cause,
+			}),
+		};
+	}
+}
+
+/** Per-call options with the client removed — the client is already bound. */
 type Bound<TData extends TDataShape> = Omit<Options<TData, false>, "client">;
 
 /**
@@ -74,8 +200,6 @@ type Bound<TData extends TDataShape> = Omit<Options<TData, false>, "client">;
  *
  * Every operation hangs off the returned object, so there is no separate
  * configuration step to forget: without a client there is nothing to call.
- * (The generated standalone functions are still exported for tree-shaking, and
- * take a `client` of their own.)
  *
  * `baseUrl` is optional and normally omitted: the host is built in. It exists
  * for r4m.ai's own staging deployments and must be https — a plain-http URL
@@ -96,41 +220,57 @@ export function createClient(options: { apiKey: string; baseUrl?: string }) {
 
 	return {
 		bulkGeocode: (o: Bound<BulkGeocodeData>) =>
-			operations.bulkGeocode({ ...o, client: bound }),
+			settle(operations.bulkGeocode({ ...o, client: bound })),
 		createApiKey: (o: Bound<CreateApiKeyData>) =>
-			operations.createApiKey({ ...o, client: bound }),
+			settle(operations.createApiKey({ ...o, client: bound })),
 		createOptimization: (o: Bound<CreateOptimizationData>) =>
-			operations.createOptimization({ ...o, client: bound }),
+			settle(operations.createOptimization({ ...o, client: bound })),
 		deleteOptimization: (o: Bound<DeleteOptimizationData>) =>
-			operations.deleteOptimization({ ...o, client: bound }),
+			settle(operations.deleteOptimization({ ...o, client: bound })),
 		forwardGeocode: (o: Bound<ForwardGeocodeData>) =>
-			operations.forwardGeocode({ ...o, client: bound }),
+			settle(operations.forwardGeocode({ ...o, client: bound })),
 		getAccount: (o?: Bound<GetAccountData>) =>
-			operations.getAccount({ ...o, client: bound }),
+			settle(operations.getAccount({ ...o, client: bound })),
 		getOptimization: (o: Bound<GetOptimizationData>) =>
-			operations.getOptimization({ ...o, client: bound }),
+			settle(operations.getOptimization({ ...o, client: bound })),
 		getUsage: (o?: Bound<GetUsageData>) =>
-			operations.getUsage({ ...o, client: bound }),
+			settle(operations.getUsage({ ...o, client: bound })),
 		getWebhookSecret: (o?: Bound<GetWebhookSecretData>) =>
-			operations.getWebhookSecret({ ...o, client: bound }),
+			settle(operations.getWebhookSecret({ ...o, client: bound })),
 		listApiKeys: (o?: Bound<ListApiKeysData>) =>
-			operations.listApiKeys({ ...o, client: bound }),
+			settle(operations.listApiKeys({ ...o, client: bound })),
 		listOptimizations: (o?: Bound<ListOptimizationsData>) =>
-			operations.listOptimizations({ ...o, client: bound }),
+			settle(operations.listOptimizations({ ...o, client: bound })),
 		revokeApiKey: (o: Bound<RevokeApiKeyData>) =>
-			operations.revokeApiKey({ ...o, client: bound }),
+			settle(operations.revokeApiKey({ ...o, client: bound })),
 		topupCredits: (o: Bound<TopupCreditsData>) =>
-			operations.topupCredits({ ...o, client: bound }),
+			settle(operations.topupCredits({ ...o, client: bound })),
 
 		submitOptimization: (o: Bound<CreateOptimizationData> & BusyOptions) =>
-			submitOptimization({ ...o, client: bound }),
+			settleWait<Optimization, BusyError>(
+				() => submitOptimization({ ...o, client: bound }),
+				o.signal,
+			),
 		createOptimizationAndWaitForRoutes: (
 			o: Bound<CreateOptimizationData> & WaitOptions & BusyOptions,
-		) => createOptimizationAndWaitForRoutes({ ...o, client: bound }),
+		) =>
+			settleWait<Optimization, WaitError>(
+				() => createOptimizationAndWaitForRoutes({ ...o, client: bound }),
+				o.signal,
+			),
 		waitForRoutes: (id: string, o: WaitOptions & BusyOptions = {}) =>
-			waitForRoutes(id, { ...o, client: bound }),
+			settleWait<Optimization, WaitError>(
+				() => waitForRoutes(id, { ...o, client: bound }),
+				o.signal,
+			),
 		waitForActiveOptimizations: (o: ActiveWaitOptions = {}) =>
-			waitForActiveOptimizations({ ...o, client: bound }),
+			settleWait<undefined, ActiveOptimizationsTimeoutError>(
+				() =>
+					waitForActiveOptimizations({ ...o, client: bound }).then(
+						() => undefined,
+					),
+				o.signal,
+			),
 
 		/** The underlying HTTP client, for interceptors and other advanced use. */
 		http: bound,
@@ -228,6 +368,12 @@ export class OptimizationFailedError extends Error {
 	}
 }
 
+/** The ways waiting for a plan can end without one, besides an `ApiError`. */
+export type WaitError =
+	| BusyError
+	| OptimizationFailedError
+	| OptimizationTimeoutError;
+
 /** The wait ran out of time. The optimization is still running server-side. */
 export class OptimizationTimeoutError extends Error {
 	readonly optimizationId: string;
@@ -284,7 +430,7 @@ type ErrorBody = {
 	error?: {
 		code?: string;
 		message?: string;
-		details?: { activeOptimizationIds?: unknown };
+		details?: Record<string, unknown> & { activeOptimizationIds?: unknown };
 	};
 };
 
@@ -351,6 +497,7 @@ async function onBusyResponse(
  * way — a webhook, your own poller — but still want the 429s handled.
  *
  * @throws {BusyError} `onBusy` returned `"fail"`, or `busyTimeoutMs` elapsed
+ * @throws {ApiError} the API refused the request
  */
 export async function submitOptimization(
 	options: Options<CreateOptimizationData> & BusyOptions,
@@ -370,13 +517,7 @@ export async function submitOptimization(
 			});
 			continue;
 		}
-		if (error) {
-			throw new Error(
-				asErrorBody(error).error?.message ??
-					"Could not create the optimization",
-			);
-		}
-		if (!created.data) throw new Error("Could not create the optimization");
+		if (error || !created.data) throw toApiError(error, created.response);
 		return created.data.data;
 	}
 }
@@ -395,6 +536,7 @@ export async function submitOptimization(
  * @throws {OptimizationFailedError} the optimization finished as `failed`
  * @throws {OptimizationTimeoutError} the deadline passed while still running
  * @throws {BusyError} busy for longer than `busyTimeoutMs`, or `onBusy` said `"fail"`
+ * @throws {ApiError} the API refused the request (401, 404 and the like)
  */
 export async function waitForRoutes(
 	id: string,
@@ -420,11 +562,8 @@ export async function waitForRoutes(
 
 		// 401/404 and friends are final — retrying cannot change the answer.
 		const status = response?.status;
-		if (error && status !== undefined && status < 500 && status !== 429) {
-			throw new Error(
-				asErrorBody(error).error?.message ??
-					`Could not fetch optimization ${id}`,
-			);
+		if (error && status !== undefined && status < 500) {
+			throw toApiError(error, response);
 		}
 
 		const optimization = data?.data;
@@ -518,6 +657,7 @@ export class ActiveOptimizationsTimeoutError extends Error {
  * when `onBusy` told you to come back later.
  *
  * @throws {ActiveOptimizationsTimeoutError} something was still running at the deadline
+ * @throws {ApiError} the API refused the request
  */
 export async function waitForActiveOptimizations(
 	options: ActiveWaitOptions & { client?: Options["client"] } = {},
@@ -534,7 +674,7 @@ export async function waitForActiveOptimizations(
 		let retryAfter: number | undefined;
 
 		for (const status of ["pending", "processing"] as const) {
-			const { data, response } = await operations.listOptimizations({
+			const { data, error, response } = await operations.listOptimizations({
 				client: options.client,
 				query: { status, limit: 100 },
 			});
@@ -542,7 +682,16 @@ export async function waitForActiveOptimizations(
 				retryAfter = retryAfterMs(response);
 				break;
 			}
-			for (const item of data?.data.items ?? []) ids.push(item.id);
+			if (error || !data) {
+				// A failed look proves nothing: read as an empty list, it would report
+				// "nothing running" to a caller whose key was just revoked.
+				if (response && response.status < 500) {
+					throw toApiError(error, response);
+				}
+				retryAfter = pollIntervalMs;
+				break;
+			}
+			for (const item of data.data.items) ids.push(item.id);
 		}
 
 		if (retryAfter === undefined) {
@@ -562,12 +711,8 @@ export async function waitForActiveOptimizations(
 }
 
 /**
- * The object `createClient` returns.
- *
- * Derived rather than written out: spelling the methods by hand dropped
- * hey-api's `ThrowOnError` generic, which widened every result so that
- * `const { data, error } = await r4m.createOptimization(...)` stopped
- * narrowing. The runtime check that every generated operation is present
- * lives in `__tests__/unit/sdk/wait.test.ts` instead.
+ * The object `createClient` returns. Derived rather than written out, so the
+ * types cannot drift from the methods. The runtime check that every generated
+ * operation is present lives in `__tests__/unit/sdk/wait.test.ts`.
  */
 export type R4MClient = ReturnType<typeof createClient>;

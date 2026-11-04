@@ -4,9 +4,8 @@ Official TypeScript client for the [r4m.ai](https://r4m.ai) route
 optimization API: the optimal driving order for a list of stops on real
 roads, with delivery windows, service times and fleets, plus geocoding.
 
-Generated from the r4m.ai OpenAPI spec with
-[`@hey-api/openapi-ts`](https://heyapi.dev), so every request and response is
-typed. Do not edit by hand — changes are overwritten on regeneration.
+Every request and response is typed, and every call resolves to `{ data, error }`:
+the compiler will not let you read `data` until you have ruled `error` out.
 
 ## Install
 
@@ -33,12 +32,13 @@ const addresses = [
 
 // Submits, waits for the solver (usually 2–60 seconds) and returns the
 // finished plan. Addresses without lat/lng are geocoded in the same call.
-const optimization = await r4m.createOptimizationAndWaitForRoutes({
+const { data: optimization, error } = await r4m.createOptimizationAndWaitForRoutes({
   body: {
     addresses,
     parameters: { roundTrip: true },
   },
 });
+if (error) throw error;
 
 const [route] = optimization.result!.routes;
 for (const stop of route.waypoints) {
@@ -63,7 +63,7 @@ Windows are local times of day, so they need `routeStartAt` and `timezone`.
 A stop must finish inside its window, service time included.
 
 ```ts
-const planned = await r4m.createOptimizationAndWaitForRoutes({
+const { data: planned, error } = await r4m.createOptimizationAndWaitForRoutes({
   body: {
     addresses: [
       { address: "350 5th Ave, New York, NY", isDepot: true },
@@ -82,6 +82,8 @@ const planned = await r4m.createOptimizationAndWaitForRoutes({
   },
 });
 
+if (error) throw error;
+
 for (const stop of planned.result!.routes[0].waypoints) {
   console.log(stop.index, stop.arrivalAt, stop.departureAt);
 }
@@ -95,7 +97,7 @@ price, and must resolve to exactly one precise place. Set `geocoding.region`
 to rule out homonyms elsewhere (`"Springfield, MO"`, `"Berlin, Germany"`):
 
 ```ts
-await r4m.createOptimizationAndWaitForRoutes({
+const { data: routed, error } = await r4m.createOptimizationAndWaitForRoutes({
   body: {
     addresses: [
       { address: "1 Main St", isDepot: true },
@@ -110,37 +112,45 @@ await r4m.createOptimizationAndWaitForRoutes({
 To geocode on its own — say, to show candidates before optimizing:
 
 ```ts
-const { data } = await r4m.bulkGeocode({
+const { data: geocoding, error } = await r4m.bulkGeocode({
   body: { addresses: ["350 5th Ave, New York, NY", "11 Wall St, New York"] },
 });
-console.log(data?.data);
+if (error) throw error;
+console.log(geocoding.results);
 ```
 
 ## Errors
 
+Calls return an error rather than reject, so there is one way to handle failure:
+
 ```ts
 import {
+  ApiError,
   BusyError,
   OptimizationFailedError,
   OptimizationTimeoutError,
 } from "@r4mai/sdk";
 
-try {
-  await r4m.createOptimizationAndWaitForRoutes({ body: { addresses } });
-} catch (err) {
-  if (err instanceof OptimizationFailedError) {
+const { data: optimization, error } = await r4m.createOptimizationAndWaitForRoutes({
+  body: { addresses },
+});
+
+if (error) {
+  if (error instanceof OptimizationFailedError) {
     // The solver ran and failed; the message says why.
-  } else if (err instanceof OptimizationTimeoutError) {
+  } else if (error instanceof OptimizationTimeoutError) {
     // Still running at the deadline (`timeoutMs`, 5 minutes by default) —
     // it keeps running; collect it later with r4m.waitForRoutes(id).
-  } else if (err instanceof BusyError) {
+  } else if (error instanceof BusyError) {
     // Rate limit or plan concurrency for longer than `busyTimeoutMs`.
-  } else {
-    // A refused request, with the server's message: an empty balance
-    // (402 INSUFFICIENT_FUNDS), an address that did not resolve
-    // (422 GEOCODING_UNRESOLVED), a plan limit, an invalid body.
-    throw err;
+  } else if (error instanceof ApiError) {
+    // A refused request, with the server's `code`, `message` and `status`: an
+    // empty balance (402 INSUFFICIENT_FUNDS), an address that did not resolve
+    // (422 GEOCODING_UNRESOLVED), a plan limit, an invalid body. No response at
+    // all is `NETWORK_ERROR`, with `status` undefined.
   }
+} else {
+  console.log(optimization.result); // no error, so `data` is available
 }
 ```
 
@@ -154,9 +164,10 @@ signature and returns the typed event:
 ```ts
 import { verifyWebhook } from "@r4mai/sdk";
 
-const receipt = await r4m.submitOptimization({
+const { data: receipt, error } = await r4m.submitOptimization({
   body: { addresses, webhookUrl: "https://your-server.com/webhooks/r4m" },
 });
+if (error) throw error;
 console.log(receipt.id, receipt.status); // "pending"
 
 // In your webhook handler (any framework with a Fetch-API Request):
@@ -192,15 +203,13 @@ The client also carries every API operation, typed: `getAccount`,
 `getUsage`, `listOptimizations`, `getOptimization`, `deleteOptimization`,
 `forwardGeocode`, `bulkGeocode`, `createApiKey`, `listApiKeys`,
 `revokeApiKey`, `getWebhookSecret`, `topupCredits`. Each returns
-`{ data, error, response }`; the payload is `data.data`.
+`{ data, error }`, with the payload itself in `data`.
 
 ```ts
-const { data } = await r4m.getUsage();
-console.log(data?.data.balanceMicros); // integer micro-dollars: 1 USD = 1 000 000
+const { data: usage, error } = await r4m.getUsage();
+if (error) throw error;
+console.log(usage.balanceMicros); // integer micro-dollars: 1 USD = 1 000 000
 ```
-
-The same functions are exported standalone for code that manages its own
-client configuration (`baseUrl` plus your raw `acc_…` key as `auth`).
 
 Full reference: [r4m.ai/docs/sdks](https://r4m.ai/docs/sdks).
 
