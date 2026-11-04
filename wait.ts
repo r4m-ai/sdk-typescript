@@ -140,7 +140,7 @@ export function createClient(options: { apiKey: string; baseUrl?: string }) {
 export type WaitOptions = {
 	/** Give up after this long. Default: 5 minutes. */
 	timeoutMs?: number;
-	/** Delay before the first re-poll, doubling up to `maxDelayMs`. Default: 1s. */
+	/** Delay before the first re-poll, doubling up to `maxDelayMs`. Default: 2s. */
 	initialDelayMs?: number;
 	/** Ceiling for the poll interval. Default: 5s. */
 	maxDelayMs?: number;
@@ -244,7 +244,7 @@ export class OptimizationTimeoutError extends Error {
 
 const DEFAULTS = {
 	timeoutMs: 300_000,
-	initialDelayMs: 1_000,
+	initialDelayMs: 2_000,
 	maxDelayMs: 5_000,
 	busyTimeoutMs: 120_000,
 	activePollMs: 5_000,
@@ -388,7 +388,7 @@ export async function submitOptimization(
  * row, an earlier process. If you are submitting and waiting in one place,
  * `createOptimizationAndWaitForRoutes` does both.
  *
- * Backs off 1s, 2s, 4s, then every 5s; treats a 429 as busy (see `onBusy`);
+ * Backs off 2s, 4s, then every 5s; treats a 429 as busy (see `onBusy`);
  * and keeps going through transient network errors and 5xx, since the
  * optimization runs whether or not you stay connected.
  *
