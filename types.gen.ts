@@ -211,6 +211,14 @@ export type OptimizationParameters = {
      */
     optimizeMode?: 'Time' | 'Distance';
     /**
+     * When true, the stops are driven in the order sent, depot first, instead of being reordered; you get the distances, times and road path of that order. The engine ignores anything that would change the order, so `optimizeMode`, fleet constraints, delivery windows and priorities are refused alongside it.
+     */
+    keepOrder?: boolean;
+    /**
+     * Time spent at every stop that does not set its own `serviceTimeSeconds`, in seconds. Not applied to the depot.
+     */
+    defaultServiceTimeSeconds?: number;
+    /**
      * IANA timezone the local times in this request are read in, for example America/New_York. Required when any stop has a delivery window.
      */
     timezone?: string;
@@ -226,6 +234,14 @@ export type OptimizationParameters = {
      * Maximum distance of one route, in meters. Applied in steps of 1609 meters, rounded down, so a cap under 1609 becomes 1609. Availability and ceiling depend on your plan.
      */
     maxRouteDistanceMeters?: number;
+    /**
+     * Maximum number of stops on one route, not counting the depot. Stops that fit on no route come back in `unroutedStops`.
+     */
+    maxStopsPerRoute?: number;
+    /**
+     * Use every vehicle in `maxRoutes` and share the work evenly by this measure. Without it `maxRoutes` is only a ceiling, and the solver may use fewer vehicles. Requires `maxRoutes`.
+     */
+    balanceBy?: 'stops';
 };
 
 /**
