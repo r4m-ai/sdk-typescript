@@ -14,7 +14,7 @@ npm install @r4mai/sdk
 ```
 
 You need an API key (`acc_…`): sign in at [r4m.ai](https://r4m.ai) and create
-one under API Keys. A new account starts with a $1.00 balance.
+one under API Keys. A new account starts with a small balance to try it.
 
 ## Optimize a route
 
@@ -206,10 +206,14 @@ The client also carries every API operation, typed: `getAccount`,
 `{ data, error }`, with the payload itself in `data`.
 
 ```ts
-const { data: usage, error } = await r4m.getUsage();
+const { data: account, error } = await r4m.getAccount();
 if (error) throw error;
-console.log(usage.balanceMicros); // integer micro-dollars: 1 USD = 1 000 000
+console.log(account.balanceMicros); // integer micro-dollars: 1 USD = 1 000 000
+console.log(account.plan.maxAddressesPerRequest, account.plan.parameters);
 ```
+
+`getAccount` returns the limits this account lives under; read them there
+rather than assuming them from a plan name.
 
 Full reference: [r4m.ai/docs/sdks](https://r4m.ai/docs/sdks).
 
