@@ -223,7 +223,7 @@ export type OptimizationParameters = {
      */
     timezone?: string;
     /**
-     * Maximum number of vehicles (routes) for multi-route VRP optimization. Defaults to 1, or to the plan's ceiling when the request sets another fleet parameter (a route cap, maxStopsPerRoute or balanceBy). Availability and ceiling depend on your plan.
+     * Maximum number of vehicles (routes) for multi-route VRP optimization. Defaults to 1, or to the plan's ceiling when the request sets another fleet parameter (a route cap or maxStopsPerRoute). Availability and ceiling depend on your plan.
      */
     maxRoutes?: number;
     /**
