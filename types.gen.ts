@@ -153,7 +153,7 @@ export type CreateOptimizationRequest = {
 
 export type Optimization = {
     id: string;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
+    status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
     parameters?: OptimizationParameters;
     /**
      * The stops, with coordinates settled (geocoded ones carry `resolved`)
@@ -235,7 +235,7 @@ export type OptimizationParameters = {
      */
     maxRouteDistanceMeters?: number;
     /**
-     * Maximum number of stops on one route, not counting the depot. Stops that fit on no route come back in `unroutedStops`.
+     * Maximum number of stops on one route, not counting the depot. Stops that fit on no route come back in `unroutedStops`. Defaults to the plan's ceiling, so a request with more stops than that is split across vehicles. Availability and ceiling depend on your plan.
      */
     maxStopsPerRoute?: number;
     /**
@@ -577,7 +577,7 @@ export type ListOptimizationsData = {
         /**
          * Filter by optimization status
          */
-        status?: 'pending' | 'processing' | 'completed' | 'failed';
+        status?: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
     };
     url: '/api/v1/optimizations';
 };
@@ -647,6 +647,13 @@ export type CreateOptimizationError = CreateOptimizationErrors[keyof CreateOptim
 
 export type CreateOptimizationResponses = {
     /**
+     * Answered from an optimization already made in the last 24 hours, nothing charged: the same request returns that optimization; the same stops in another order return one of their own, indexed in the order sent
+     */
+    200: {
+        success: true;
+        data: Optimization;
+    };
+    /**
      * Optimization accepted and queued for processing
      */
     202: {
@@ -678,6 +685,10 @@ export type DeleteOptimizationErrors = {
      * Optimization not found
      */
     404: ErrorResponse;
+    /**
+     * The optimization is still pending or processing (OPTIMIZATION_IN_PROGRESS); cancel it, or delete it once it has finished
+     */
+    409: ErrorResponse;
     /**
      * Rate limit exceeded. Limits protect the backend rather than the plan, so normal use should never reach one — back off for the interval in `Retry-After` and retry.
      */
@@ -717,10 +728,6 @@ export type GetOptimizationErrors = {
      */
     404: ErrorResponse;
     /**
-     * The optimization is still pending or processing; delete it once it has finished
-     */
-    409: ErrorResponse;
-    /**
      * Rate limit exceeded. Limits protect the backend rather than the plan, so normal use should never reach one — back off for the interval in `Retry-After` and retry.
      */
     429: ErrorResponse;
@@ -739,6 +746,54 @@ export type GetOptimizationResponses = {
 };
 
 export type GetOptimizationResponse = GetOptimizationResponses[keyof GetOptimizationResponses];
+
+export type CancelOptimizationData = {
+    body?: never;
+    path: {
+        /**
+         * Optimization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/optimizations/{id}/cancel';
+};
+
+export type CancelOptimizationErrors = {
+    /**
+     * Missing or invalid API key
+     */
+    401: ErrorResponse;
+    /**
+     * Optimization not found
+     */
+    404: ErrorResponse;
+    /**
+     * The optimization already completed, failed or was cancelled (OPTIMIZATION_FINISHED)
+     */
+    409: ErrorResponse;
+    /**
+     * Rate limit exceeded. Limits protect the backend rather than the plan, so normal use should never reach one — back off for the interval in `Retry-After` and retry.
+     */
+    429: ErrorResponse;
+};
+
+export type CancelOptimizationError = CancelOptimizationErrors[keyof CancelOptimizationErrors];
+
+export type CancelOptimizationResponses = {
+    /**
+     * Optimization cancelled
+     */
+    200: {
+        success: true;
+        data: {
+            id: string;
+            status: 'cancelled';
+        };
+    };
+};
+
+export type CancelOptimizationResponse = CancelOptimizationResponses[keyof CancelOptimizationResponses];
 
 export type ListApiKeysData = {
     body?: never;

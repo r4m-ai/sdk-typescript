@@ -31,13 +31,30 @@ export type OptimizationFailedEvent = {
 		 * `PROCESSING_FAILED` — the job threw; the charge was refunded.
 		 * `TIMED_OUT` — it did not finish within 15 minutes; the charge was
 		 * refunded and its concurrency slot released.
+		 * `SOURCE_FAILED` — it was answered from another optimization for the
+		 * same stops in another order, which failed or was cancelled; nothing
+		 * was charged.
 		 *
 		 * Widened to string so a code we add later does not break your build;
-		 * the three above are the ones that exist today.
+		 * the four above are the ones that exist today.
 		 */
-		code: "NO_ROUTES" | "PROCESSING_FAILED" | "TIMED_OUT" | (string & {});
+		code:
+			| "NO_ROUTES"
+			| "PROCESSING_FAILED"
+			| "TIMED_OUT"
+			| "SOURCE_FAILED"
+			| (string & {});
 		message: string;
 	};
+};
+
+/**
+ * You cancelled the optimization. No result follows, whatever the engine
+ * does, and the charge stays.
+ */
+export type OptimizationCancelledEvent = {
+	type: "optimization.cancelled";
+	optimizationId: string;
 };
 
 /**
@@ -47,7 +64,10 @@ export type OptimizationFailedEvent = {
  * completed branch, `error` on the failed one. Neither is optional, so there
  * is no branch where you have to guess which field is present.
  */
-export type WebhookEvent = OptimizationCompletedEvent | OptimizationFailedEvent;
+export type WebhookEvent =
+	| OptimizationCompletedEvent
+	| OptimizationFailedEvent
+	| OptimizationCancelledEvent;
 
 /** Header carrying the HMAC-SHA256 hex digest of the raw body. */
 export const WEBHOOK_SIGNATURE_HEADER = "X-Webhook-Signature";

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BulkGeocodeData, BulkGeocodeErrors, BulkGeocodeResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateOptimizationData, CreateOptimizationErrors, CreateOptimizationResponses, DeleteOptimizationData, DeleteOptimizationErrors, DeleteOptimizationResponses, ForwardGeocodeData, ForwardGeocodeErrors, ForwardGeocodeResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetOptimizationData, GetOptimizationErrors, GetOptimizationResponses, GetUsageData, GetUsageErrors, GetUsageResponses, GetWebhookSecretData, GetWebhookSecretErrors, GetWebhookSecretResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListOptimizationsData, ListOptimizationsErrors, ListOptimizationsResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, TopupCreditsData, TopupCreditsErrors, TopupCreditsResponses } from './types.gen';
+import type { BulkGeocodeData, BulkGeocodeErrors, BulkGeocodeResponses, CancelOptimizationData, CancelOptimizationErrors, CancelOptimizationResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateOptimizationData, CreateOptimizationErrors, CreateOptimizationResponses, DeleteOptimizationData, DeleteOptimizationErrors, DeleteOptimizationResponses, ForwardGeocodeData, ForwardGeocodeErrors, ForwardGeocodeResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetOptimizationData, GetOptimizationErrors, GetOptimizationResponses, GetUsageData, GetUsageErrors, GetUsageResponses, GetWebhookSecretData, GetWebhookSecretErrors, GetWebhookSecretResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListOptimizationsData, ListOptimizationsErrors, ListOptimizationsResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, TopupCreditsData, TopupCreditsErrors, TopupCreditsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -32,7 +32,7 @@ export const listOptimizations = <ThrowOnError extends boolean = false>(options?
 /**
  * Create optimization
  *
- * Submit addresses for route optimization. The request is processed asynchronously: poll the returned ID or configure a webhook to receive the result. The price is charged immediately based on the number of addresses. An address sent without `lat`/`lng` is geocoded as part of the request, charged separately at the geocode price (`geocodingPriceMicros`), and must resolve to exactly one precise place — use `geocoding.region` or `geocoding.bounds` to rule out homonyms; otherwise the whole request is refused with 422 GEOCODING_UNRESOLVED and the candidates, and only the lookup is charged.
+ * Submit addresses for route optimization. The request is processed asynchronously: poll the returned ID or configure a webhook to receive the result. The price is charged immediately based on the number of addresses. Sending the same request again is safe: while the first is pending or processing, or for 24 hours after it completed, the same request (addresses, parameters, `webhookUrl`, `geocoding`) returns that optimization with 200 instead of 202, and nothing is charged; a failed or cancelled one is never returned this way. The same stops in another order (the depot unchanged; under `keepOrder` the order counts) are answered from it too, also with 200 and nothing charged, but as an optimization of their own: its `addresses` and every `index` in its result follow the order you sent. If the first is still running, the new one stays `pending` until it lands, and fails with `SOURCE_FAILED` if it fails or is cancelled. An address sent without `lat`/`lng` is geocoded as part of the request, charged separately at the geocode price (`geocodingPriceMicros`), and must resolve to exactly one precise place — use `geocoding.region` or `geocoding.bounds` to rule out homonyms; otherwise the whole request is refused with 422 GEOCODING_UNRESOLVED and the candidates, and only the lookup is charged.
  */
 export const createOptimization = <ThrowOnError extends boolean = false>(options: Options<CreateOptimizationData, ThrowOnError>): RequestResult<CreateOptimizationResponses, CreateOptimizationErrors, ThrowOnError> => (options.client ?? client).post<CreateOptimizationResponses, CreateOptimizationErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -47,7 +47,7 @@ export const createOptimization = <ThrowOnError extends boolean = false>(options
 /**
  * Delete optimization
  *
- * Permanently delete an optimization and its associated data. The charge is not refunded.
+ * Permanently delete an optimization and its associated data. The charge is not refunded. One still pending or processing cannot be deleted: cancel it first.
  */
 export const deleteOptimization = <ThrowOnError extends boolean = false>(options: Options<DeleteOptimizationData, ThrowOnError>): RequestResult<DeleteOptimizationResponses, DeleteOptimizationErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOptimizationResponses, DeleteOptimizationErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -63,6 +63,17 @@ export const deleteOptimization = <ThrowOnError extends boolean = false>(options
 export const getOptimization = <ThrowOnError extends boolean = false>(options: Options<GetOptimizationData, ThrowOnError>): RequestResult<GetOptimizationResponses, GetOptimizationErrors, ThrowOnError> => (options.client ?? client).get<GetOptimizationResponses, GetOptimizationErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/optimizations/{id}',
+    ...options
+});
+
+/**
+ * Cancel optimization
+ *
+ * Stop waiting for an optimization that is still pending or processing. It turns `cancelled` at once and frees its concurrency slot. The charge is not refunded — the engine may already be working on it — and no result will ever be recorded or delivered for it; a webhook, if set, receives `optimization.cancelled`.
+ */
+export const cancelOptimization = <ThrowOnError extends boolean = false>(options: Options<CancelOptimizationData, ThrowOnError>): RequestResult<CancelOptimizationResponses, CancelOptimizationErrors, ThrowOnError> => (options.client ?? client).post<CancelOptimizationResponses, CancelOptimizationErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/optimizations/{id}/cancel',
     ...options
 });
 

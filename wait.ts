@@ -23,6 +23,7 @@ import type { Options } from "./sdk.gen";
 import * as operations from "./sdk.gen";
 import type {
 	BulkGeocodeData,
+	CancelOptimizationData,
 	ClientOptions,
 	CreateApiKeyData,
 	CreateOptimizationData,
@@ -221,6 +222,8 @@ export function createClient(options: { apiKey: string; baseUrl?: string }) {
 	return {
 		bulkGeocode: (o: Bound<BulkGeocodeData>) =>
 			settle(operations.bulkGeocode({ ...o, client: bound })),
+		cancelOptimization: (o: Bound<CancelOptimizationData>) =>
+			settle(operations.cancelOptimization({ ...o, client: bound })),
 		createApiKey: (o: Bound<CreateApiKeyData>) =>
 			settle(operations.createApiKey({ ...o, client: bound })),
 		createOptimization: (o: Bound<CreateOptimizationData>) =>
@@ -357,12 +360,20 @@ export class BusyError extends Error {
 	}
 }
 
-/** The optimization finished, but the solver could not produce a plan. */
+/**
+ * The optimization ended without a plan: it `failed` (the solver could not
+ * produce one) or was `cancelled` — `optimization.status` says which.
+ */
 export class OptimizationFailedError extends Error {
 	readonly optimization: Optimization;
 
 	constructor(optimization: Optimization) {
-		super(optimization.errorMessage ?? "Optimization failed");
+		super(
+			optimization.errorMessage ??
+				(optimization.status === "cancelled"
+					? "Optimization cancelled"
+					: "Optimization failed"),
+		);
 		this.name = "OptimizationFailedError";
 		this.optimization = optimization;
 	}
@@ -533,7 +544,7 @@ export async function submitOptimization(
  * and keeps going through transient network errors and 5xx, since the
  * optimization runs whether or not you stay connected.
  *
- * @throws {OptimizationFailedError} the optimization finished as `failed`
+ * @throws {OptimizationFailedError} the optimization finished as `failed` or was `cancelled`
  * @throws {OptimizationTimeoutError} the deadline passed while still running
  * @throws {BusyError} busy for longer than `busyTimeoutMs`, or `onBusy` said `"fail"`
  * @throws {ApiError} the API refused the request (401, 404 and the like)
@@ -568,7 +579,10 @@ export async function waitForRoutes(
 
 		const optimization = data?.data;
 		if (optimization?.status === "completed") return optimization;
-		if (optimization?.status === "failed") {
+		if (
+			optimization?.status === "failed" ||
+			optimization?.status === "cancelled"
+		) {
 			throw new OptimizationFailedError(optimization);
 		}
 
