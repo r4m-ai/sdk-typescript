@@ -1,6 +1,6 @@
 {
   "name": "@r4mai/sdk",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Route optimization for apps and AI agents: the optimal driving order for many stops on real roads, with time windows, service times and fleets, plus geocoding. Typed client for the r4m.ai API.",
   "keywords": ["route optimization", "routing", "traveling salesman", "tsp", "vehicle routing", "vrp", "delivery", "last mile", "logistics", "dispatch", "geocoding", "ai agents", "mcp", "r4m"],
   "main": "./dist/index.js",
