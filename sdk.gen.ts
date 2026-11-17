@@ -143,7 +143,7 @@ export const forwardGeocode = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Bulk geocode
  *
- * Geocode multiple addresses in a single request, up to your plan's maximum addresses per request. Returns exactly one result per distinct address, in the order first sent: match results to your own data by `original`, never by position. A string sent twice is geocoded and charged once. Each result's `status` is `ok`, `ambiguous` (several `candidates`, e.g. a bare "Springfield") or `not_found`; only `precision: "address"` is exact enough to drive to. Priced per distinct address.
+ * Geocode multiple addresses in a single request, up to your account's maximum addresses per request. Returns exactly one result per distinct address, in the order first sent: match results to your own data by `original`, never by position. A string sent twice is geocoded and charged once. Each result's `status` is `ok`, `ambiguous` (several `candidates`, e.g. a bare "Springfield") or `not_found`; only `precision: "address"` is exact enough to drive to. Priced per distinct address.
  */
 export const bulkGeocode = <ThrowOnError extends boolean = false>(options: Options<BulkGeocodeData, ThrowOnError>): RequestResult<BulkGeocodeResponses, BulkGeocodeErrors, ThrowOnError> => (options.client ?? client).post<BulkGeocodeResponses, BulkGeocodeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -158,7 +158,7 @@ export const bulkGeocode = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Get account
  *
- * Get account details including the current plan tier and email.
+ * Get account details: email, balance and limits.
  */
 export const getAccount = <ThrowOnError extends boolean = false>(options?: Options<GetAccountData, ThrowOnError>): RequestResult<GetAccountResponses, GetAccountErrors, ThrowOnError> => (options?.client ?? client).get<GetAccountResponses, GetAccountErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

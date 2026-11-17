@@ -223,19 +223,19 @@ export type OptimizationParameters = {
      */
     timezone?: string;
     /**
-     * Maximum number of vehicles (routes) for multi-route VRP optimization. Defaults to 1, or to the plan's ceiling when the request sets another fleet parameter (a route cap or maxStopsPerRoute). Availability and ceiling depend on your plan.
+     * Maximum number of vehicles (routes) for multi-route VRP optimization. Defaults to 1, or to the account's ceiling when the request sets another fleet parameter (a route cap or maxStopsPerRoute). Availability and ceiling depend on your account.
      */
     maxRoutes?: number;
     /**
-     * Maximum wall-clock duration of one route, in seconds. Defaults to the plan's ceiling. Availability and ceiling depend on your plan.
+     * Maximum wall-clock duration of one route, in seconds. Defaults to the account's ceiling. Availability and ceiling depend on your account.
      */
     maxRouteDurationSeconds?: number;
     /**
-     * Maximum distance of one route, in meters. Applied in steps of 1609 meters, rounded down, so a cap under 1609 becomes 1609. Defaults to the plan's ceiling. Availability and ceiling depend on your plan.
+     * Maximum distance of one route, in meters. Applied in steps of 1609 meters, rounded down, so a cap under 1609 becomes 1609. Defaults to the account's ceiling. Availability and ceiling depend on your account.
      */
     maxRouteDistanceMeters?: number;
     /**
-     * Maximum number of stops on one route, not counting the depot. Stops that fit on no route come back in `unroutedStops`. Defaults to the plan's ceiling, so a request with more stops than that is split across vehicles. Availability and ceiling depend on your plan.
+     * Maximum number of stops on one route, not counting the depot. Stops that fit on no route come back in `unroutedStops`. Defaults to the account's ceiling, so a request with more stops than that is split across vehicles. Availability and ceiling depend on your account.
      */
     maxStopsPerRoute?: number;
     /**
@@ -493,7 +493,7 @@ export type Account = {
     name?: string;
     currency: 'USD';
     /**
-     * Current subscription plan
+     * The account's plan tier. Every account has the same limits (`free`) unless limits were agreed individually (`custom`); `pro` is no longer sold.
      */
     planTier: 'free' | 'pro' | 'custom';
     /**
@@ -638,7 +638,7 @@ export type CreateOptimizationErrors = {
      */
     422: ErrorResponse;
     /**
-     * Busy — one of two codes. `RATE_LIMITED`: the per-minute safety limit; back off for `Retry-After` and retry. `CONCURRENCY_LIMIT_EXCEEDED`: as many optimizations as the plan allows are already pending or processing; `error.details` carries `active`, `limit` and `activeOptimizationIds` — poll one of those until it finishes, then retry. An optimization that has not finished within 15 minutes frees its slot by itself and is refunded.
+     * Busy — one of two codes. `RATE_LIMITED`: the per-minute safety limit; back off for `Retry-After` and retry. `CONCURRENCY_LIMIT_EXCEEDED`: as many optimizations as the account allows are already pending or processing; `error.details` carries `active`, `limit` and `activeOptimizationIds` — poll one of those until it finishes, then retry. An optimization that has not finished within 15 minutes frees its slot by itself and is refunded.
      */
     429: ErrorResponse;
 };
